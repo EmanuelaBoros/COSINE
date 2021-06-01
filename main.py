@@ -63,7 +63,7 @@ def main(args):
 #            trainer.train(labels, pad_token_label_id)
             # trainer.save_features()
         elif args.method == 'selftrain':
-            trainer.train()
+#            trainer.train()
 #            trainer.train(labels, pad_token_label_id)
             trainer.selftrain(soft=args.soft_label)#, adv = args.add_adv)
 

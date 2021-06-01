@@ -54,7 +54,50 @@ class Trainer(object):
         self.model = self.model.to(self.device)
 
 
+#    def calc_loss(self, input, target, loss, thresh = 0.95, soft = True, conf = 'max', confreg = 0.1):
+#
+## 
+##        softmax = nn.Softmax(dim=1)
+##        target = softmax(target.view(-1, target.shape[-1])).view(target.shape)
+##        import pdb;pdb.set_trace()
+#
+##        target = F.softmax(target.view(-1, target.shape[-1])).view(target.shape)
+#        target = F.softmax(target, -1)
+#        
+##        target = torch.argmax(target, 2)
+#                        
+#        target = self.soft_frequency(target, probs = True, soft = soft)
+#        
+#        loss_batch = loss(input, target)
+#
+#        
+#        if conf == 'max':
+#            weight = torch.max(target, axis = 1).values
+#            w = torch.FloatTensor([1 if x == True else 0 for x in weight>thresh]).to(self.device)
+#        elif conf == 'entropy':
+#
+##            import pdb;pdb.set_trace()
+#
+#            weight = torch.sum(-torch.log(target+1e-6) * target, dim=1)
+#            weight = 1 - weight / np.log(weight.size(-1))
+#            w = 1 - weight / np.log(weight.size(-1))
+#            w[w > thresh] = 0
+#            w[w <= thresh] = 1
+#
+##            w = torch.FloatTensor([1 if x == True else 0 for x in weight>thresh]).to(self.device)
+#
+#        l = torch.sum(loss_batch * w.unsqueeze(1) * weight.unsqueeze(1))
+##        l = torch.sum(loss_batch *  weight.unsqueeze(1))
+#        
+##        import pdb;pdb.set_trace()
+#        
+#        n_classes_ = input.shape[-1]
+#        l -= confreg *( torch.sum(input * w.unsqueeze(1)) + np.log(n_classes_) * n_classes_ )
+##        l -= confreg *(input + np.log(n_classes_) * n_classes_ )
+#        return l
+
     def calc_loss(self, input, target, loss, thresh = 0.95, soft = True, conf = 'max', confreg = 0.1):
+        
         softmax = nn.Softmax(dim=1)
         target = softmax(target.view(-1, target.shape[-1])).view(target.shape)
         
@@ -75,6 +118,7 @@ class Trainer(object):
         l -= confreg *( torch.sum(input * w.unsqueeze(1)) + np.log(n_classes_) * n_classes_ )
         return l
 
+
     def contrastive_loss(self, input, feat, target, conf = 'none', thresh = 0.1, distmetric = 'l2'):
         softmax = nn.Softmax(dim=1)
         target = softmax(target.view(-1, target.shape[-1])).view(target.shape)
@@ -82,6 +126,7 @@ class Trainer(object):
             weight = torch.max(target, axis = 1).values
             w = torch.tensor([i for i,x in enumerate(weight) if x > thresh], dtype=torch.long).to(self.device)
         elif conf == 'entropy':
+#            import pdb;pdb.set_trace()
             weight = torch.sum(-torch.log(target+1e-6) * target, dim = 1)
             weight = 1 - weight / np.log(weight.size(-1))
             w = torch.tensor([i for i,x in enumerate(weight) if x > thresh], dtype=torch.long).to(self.device)
@@ -179,24 +224,37 @@ class Trainer(object):
 
                 logits = outputs[0]
 #                true_labels = batch[-1]
+                losses = []
+                for output_pseudo0, logits_ in zip(outputs_pseudo[0], logits):
+                    loss = self.calc_loss(input = torch.log(softmax(logits_)), \
+                                            target= output_pseudo0, \
+                                            loss = self_training_loss, \
+                                            thresh = self.args.self_training_eps, \
+                                            soft = soft, \
+                                            conf = 'entropy', \
+                                            confreg = self.args.self_training_confreg)
+                    losses.append(loss)
+#                    import pdb;pdb.set_trace()
                 
-                loss = self.calc_loss(input = torch.log(softmax(logits)), \
-                                        target= outputs_pseudo[0], \
-                                        loss = self_training_loss, \
-                                        thresh = self.args.self_training_eps, \
-                                        soft = soft, \
-                                        conf = 'entropy', \
-                                        confreg = self.args.self_training_confreg)
-
+#                print(losses)
                 if self.args.self_training_contrastive_weight > 0:
-                    contrastive_loss = self.contrastive_loss(input = torch.log(softmax(logits)), \
-                                        feat = outputs_pseudo[-1], \
-                                        target= outputs_pseudo[0], \
-                                        conf = 'entropy', \
-                                        thresh =  self.args.self_training_eps, \
-                                        distmetric = self.args.distmetric, \
-                                        )
-                    loss = loss + self.args.self_training_contrastive_weight * contrastive_loss
+                    
+
+                    contrastive_losses = []
+                    for output_pseudo0, output_pseudo1, logits_ in zip(outputs_pseudo[0], outputs_pseudo[-1], logits):
+                        contrastive_loss = self.contrastive_loss(input = torch.log(softmax(logits_)), \
+                                            feat = output_pseudo1, \
+                                            target= output_pseudo0, \
+                                            conf = 'entropy', \
+                                            thresh =  self.args.self_training_eps, \
+                                            distmetric = self.args.distmetric, \
+                                            )
+                        contrastive_losses.append(contrastive_loss)
+                    
+#                    import pdb;pdb.set_trace()                    
+#                    print(torch.mean(torch.stack(losses)), np.average(contrastive_losses), sum(contrastive_losses))
+                    
+                    loss = torch.mean(torch.stack(losses)) + self.args.self_training_contrastive_weight * np.average(contrastive_losses)
 
                 if self.args.gradient_accumulation_steps > 1:
                     loss = loss / self.args.gradient_accumulation_steps
@@ -212,7 +270,7 @@ class Trainer(object):
                     self.model.zero_grad()
                     teacher_model.zero_grad()
                     global_step += 1
-                    epoch_iterator.set_description("SelfTrain iter:%d Loss:%.3f m:%.3f" % (step, selftrain_loss/global_step, ))
+                    epoch_iterator.set_description("SelfTrain iter:%d Loss:%.3f" % (step, selftrain_loss/global_step))
                     if self.args.logging_steps > 0 and global_step % self.args.self_train_logging_steps == 0:
                         self.evaluate('dev', global_step)
                         self.evaluate('test', global_step)
