@@ -348,7 +348,9 @@ class Trainer(object):
         nb_eval_steps = 0
         preds = None
         out_label_ids = None
+        
         self.model.eval()
+        
         for batch in tqdm(eval_dataloader, desc="Evaluating"):
             batch = tuple(t.to(self.device) for t in batch)
             with torch.no_grad():
@@ -368,7 +370,8 @@ class Trainer(object):
 
                 eval_loss += tmp_eval_loss.mean().item()
             nb_eval_steps += 1
-
+            
+            
             if preds is None:
                 preds = logits.detach().cpu().numpy()
                 out_label_ids = inputs['labels'].detach().cpu().numpy()
@@ -381,16 +384,28 @@ class Trainer(object):
         results = {
             "loss": eval_loss
         }
-        preds = np.argmax(preds, axis=1)
+        
+        
+        from data_loader_new import read_examples_from_file
+        examples = read_examples_from_file(self.args.data_dir, mode)
+
+        
         if self.args.task_type == 're':
+            preds = np.argmax(preds, axis=1)
             write_prediction_re(self.args, os.path.join(self.args.eval_dir, "pred/proposed_answers.txt"), preds)
         elif self.args.task_type == 'tc':
-            write_prediction_tc(self.args, os.path.join(self.args.eval_dir, "pred/pred_%s_%s_%s_%d.txt"%(self.args.task, mode, self.args.method, global_step)), preds, self.id2label)
+            preds = np.argmax(preds, axis=2)
+            goldstandard, predictions = write_prediction_tc(examples, out_label_ids, self.args, os.path.join(self.args.eval_dir, "pred/pred_%s_%s_%s_%d.txt"%(self.args.task, mode, self.args.method, global_step)), preds, self.id2label)
         elif self.args.task_type == 'wic':
+            preds = np.argmax(preds, axis=1)
             write_prediction_wic(self.args, os.path.join(self.args.eval_dir, "pred/pred_%s_%s_%s_%s.txt"%(self.args.task, mode, self.args.method, str(global_step))), preds, self.id2label)
         else:
             pass
-        result = compute_metrics(preds, out_label_ids)
+        
+#        import pdb;pdb.set_trace()
+
+#        result = compute_metrics(preds, out_label_ids)
+        result = compute_metrics(predictions, goldstandard)
         result.update(result)
 
         logger.info("***** Eval results *****")

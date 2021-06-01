@@ -58,29 +58,43 @@ def write_prediction_re(args, output_file, preds):
         for idx, pred in enumerate(preds):
             f.write("{}\t{}\n".format(8001 + idx, relation_labels[pred]))
 
-def write_prediction_tc(args, output_file, preds, id2label):
+def write_prediction_tc(examples, out_label_ids, args, output_file, preds, id2label):
     """
     For official evaluation script
     :param output_file: prediction_file_path (e.g. eval/proposed_answers.txt)
     :param preds: [0,1,0,2,18,...]
     """
     #relation_labels = get_label(args)
+    
+#    import pdb;pdb.set_trace()
+    
+    goldstandard, predictions = [], []
+    
     with open(output_file, 'w', encoding='utf-8') as f:
-        for idx, pred in enumerate(preds):
-            pred = str(pred)
-            pred = int(pred)
-            f.write("{}\t{}\n".format(8001 + idx, id2label[pred]))
+        for example, pred_vector, label_vector in zip(examples, preds, out_label_ids):
+            idx = 0
+            for pred, label in zip(pred_vector, label_vector):
+                if label != -100:
+                    f.write(example.words[idx] + '\t' + id2label[pred] + '\n')
+                    idx += 1
+                    predictions.append(id2label[pred])
+                    goldstandard.append(id2label[label])
 
-def write_prediction_re(args, output_file, preds):
-    """
-    For official evaluation script
-    :param output_file: prediction_file_path (e.g. eval/proposed_answers.txt)
-    :param preds: [0,1,0,2,18,...]
-    """
-    relation_labels = get_label(args)
-    with open(output_file, 'w', encoding='utf-8') as f:
-        for idx, pred in enumerate(preds):
-            f.write("{}\t{}\n".format(8001 + idx, relation_labels[pred]))
+            #TODO: (remove) when the sequence is smaller than the max input
+            if idx < len(example.words):
+                for word, label in zip(example.words[idx:], [x for x in label_vector if x != -100][idx:]):
+                    f.write(example.words[idx] + '\t' + id2label[pred] + '\n')
+                    
+                    predictions.append(id2label[0])
+                    goldstandard.append(id2label[label])
+
+            f.write('\n')
+            f.flush()
+    return goldstandard, predictions
+#        for idx, pred in enumerate(preds):
+#            pred = str(pred)
+#            pred = int(pred)
+#            f.write("{}\t{}\n".format(8001 + idx, id2label[pred]))
 
 
 def write_prediction_wic(args, output_file, preds, id2label):
@@ -267,7 +281,10 @@ def simple_accuracy(preds, labels):
 
 
 def acc_and_f1(preds, labels, average='macro'):
-    acc = simple_accuracy(preds, labels)
+    from sklearn.metrics import accuracy_score
+    from sklearn.metrics import classification_report
+#    acc = simple_accuracy(preds, labels)
+    acc = accuracy_score(preds, labels)
     #macro_recall = recall_score(y_true=labels, y_pred = preds, average = 'macro')
     #micro_recall = recall_score(y_true=labels, y_pred = preds, average = 'micro')
     #print(acc, macro_recall, micro_recall)
@@ -277,6 +294,8 @@ def acc_and_f1(preds, labels, average='macro'):
     #print(pr, re, f1)
     p, r, f, _ = precision_recall_fscore_support(y_true = labels, y_pred = preds, average='micro')
     #print(labels[:10], preds[:10])
+    
+    print(classification_report(preds, labels))
     return {
         "acc": acc,
         #"f1": official_f1(),

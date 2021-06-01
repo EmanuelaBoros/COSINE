@@ -14,8 +14,8 @@ def main(args):
     labels = get_labels(args.labels)
     num_labels = len(labels)
     
-    id2label = {label: i for i, label in enumerate(labels)}
-    label2id = {label: i for i, label in id2label.items()}
+    label2id = {label: i for i, label in enumerate(labels)}
+    id2label = {label: i for i, label in label2id.items()}
 
     # Use cross entropy ignore index as padding label id so that only real label ids contribute to the loss later
     pad_token_label_id = CrossEntropyLoss().ignore_index
