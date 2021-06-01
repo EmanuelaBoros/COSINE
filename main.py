@@ -65,7 +65,9 @@ def main(args):
         elif args.method == 'selftrain':
             trainer.train()
 #            trainer.train(labels, pad_token_label_id)
-            trainer.selftrain(labels, pad_token_label_id, soft = args.soft_label)
+            trainer.selftrain(soft=args.soft_label)#, adv = args.add_adv)
+
+#            trainer.selftrain(labels, pad_token_label_id, soft = args.soft_label)
         
     if args.do_eval:
         trainer.evaluate('test', labels, pad_token_label_id)
