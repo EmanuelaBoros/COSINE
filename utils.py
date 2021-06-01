@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch
 import numpy as np
 from transformers import BertTokenizer, BertConfig, AlbertConfig, AlbertTokenizer, RobertaConfig, RobertaTokenizer
+import warnings
+warnings.filterwarnings("ignore")
 
 #from official_eval import official_f1
 from model import RBERT, BERT_model, WiCBERT, ReBERT
@@ -283,6 +285,7 @@ def simple_accuracy(preds, labels):
 def acc_and_f1(preds, labels, average='macro'):
     from sklearn.metrics import accuracy_score
     from sklearn.metrics import classification_report
+    from nereval import evaluate
 #    acc = simple_accuracy(preds, labels)
     acc = accuracy_score(preds, labels)
     #macro_recall = recall_score(y_true=labels, y_pred = preds, average = 'macro')
@@ -295,7 +298,7 @@ def acc_and_f1(preds, labels, average='macro'):
     p, r, f, _ = precision_recall_fscore_support(y_true = labels, y_pred = preds, average='micro')
     #print(labels[:10], preds[:10])
     
-    print(classification_report(preds, labels))
+    print(evaluate(labels, preds))
     return {
         "acc": acc,
         #"f1": official_f1(),

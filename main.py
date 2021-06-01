@@ -5,7 +5,8 @@ from utils import init_logger, load_tokenizer, MODEL_CLASSES, MODEL_PATH_MAP
 # from data_loader_new import load_and_cache_examples, load_and_cache_unlabeled_examples
 from data_loader_new import load_and_cache_examples, get_labels
 from torch.nn import CrossEntropyLoss
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def main(args):
     init_logger()
