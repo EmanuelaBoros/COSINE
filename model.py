@@ -3,6 +3,7 @@ import torch.nn as nn
 from transformers import BertModel, BertPreTrainedModel, RobertaModel, AlbertModel
 from transformers import (
     BertForSequenceClassification,
+    RobertaForTokenClassification,
     RobertaModel,
     AlbertModel,
     BertModel,
@@ -12,10 +13,10 @@ from transformers import (
     RobertaForMaskedLM,
     AlbertForMaskedLM
     )
-from modeling_roberta import RobertaForSequenceClassification_v2
-from transformers.modeling_roberta import RobertaLMHead
-from transformers.modeling_bert import BertOnlyMLMHead
-from transformers.modeling_albert import AlbertMLMHead
+#from modeling_roberta import RobertaForTokenClassification_v2
+#from transformers.modeling_roberta import RobertaLMHead
+#from transformers.modeling_bert import BertOnlyMLMHead
+#from transformers.modeling_albert import AlbertMLMHead
 
 PRETRAINED_MODEL_MAP = {
     'bert': BertModel,
@@ -23,21 +24,22 @@ PRETRAINED_MODEL_MAP = {
     'albert': AlbertModel
 }
 
-PRETRAINED_MODEL_LM_MAP = {
-    'bert': BertOnlyMLMHead,
-    'roberta': RobertaLMHead,
-    'albert': AlbertMLMHead
-}
+#PRETRAINED_MODEL_LM_MAP = {
+##    'bert': BertOnlyMLMHead,
+#    'roberta': RobertaLMHead,
+##    'albert': AlbertMLMHead
+#}
 
 PRETRAINED_MODEL_MAP_SeqClass = {
     'bert': BertForSequenceClassification,
-    'roberta': RobertaForSequenceClassification_v2,
+    'roberta': RobertaForTokenClassification,
     'albert': AlbertModel
 }
 
 PRETRAINED_MODEL_MAP_TokenClass = {
     'bert': BertForTokenClassification,
-    'roberta': RobertaModel,
+    # 'roberta': RobertaModel,
+    'roberta': RobertaForTokenClassification,
     'albert': AlbertModel
 }
 

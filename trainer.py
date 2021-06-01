@@ -126,7 +126,7 @@ class Trainer(object):
     def selftrain(self, soft = True):
         selftrain_dataset = ConcatDataset([self.train_dataset, self.unlabeled])
         ## generating pseudo_labels
-        pseudo_labels = []
+#        pseudo_labels = []
         train_sampler = RandomSampler(selftrain_dataset)
         train_dataloader = DataLoader(selftrain_dataset, sampler=train_sampler, batch_size=self.args.batch_size)
         if self.args.self_training_max_step > 0:
@@ -146,7 +146,7 @@ class Trainer(object):
         scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=self.args.warmup_steps, num_training_steps=t_total)
         self_training_loss = nn.KLDivLoss(reduction = 'none') if soft else nn.CrossEntropyLoss(reduction = 'none')
         softmax = nn.Softmax(dim=1)
-        update_step = 0
+#        update_step = 0
         self_training_steps = self.args.self_training_max_step
         global_step = 0
         selftrain_loss = 0
@@ -178,7 +178,7 @@ class Trainer(object):
                 outputs_pseudo = teacher_model(**inputs)
 
                 logits = outputs[0]
-                true_labels = batch[-1]
+#                true_labels = batch[-1]
                 
                 loss = self.calc_loss(input = torch.log(softmax(logits)), \
                                         target= outputs_pseudo[0], \
@@ -281,21 +281,29 @@ class Trainer(object):
                             'token_type_ids': batch[2],
                             'labels': batch[3],
                           }
+                
+                
                 if self.args.task_type=='wic':
                     inputs['keys'] = batch[6]
                 elif self.args.task_type=='re':
                     inputs['e1_mask'] = batch[4]
                     inputs['e2_mask'] = batch[5]
                 outputs = self.model(**inputs)
-                loss1 = outputs[0]
+
                 logits = outputs[1]
-                loss = criterion(input = F.log_softmax(logits), target = self.label_matrix[batch[3]].to(self.device))
+                
+                batch[3][batch[3]==-100] = 0 # replace all the padding with 0 #TODO: Works only with ROBERTA!
+                
+                target = torch.nn.functional.one_hot(batch[3], self.num_labels).float()
+                loss = criterion(input = F.log_softmax(logits, -1), target = target.to(self.device))
+                
                 if self.args.gradient_accumulation_steps > 1:
                     loss = loss / self.args.gradient_accumulation_steps
                 if torch.cuda.device_count() > 1:
                     #print(loss.size(), torch.cuda.device_count())
                     loss = loss.mean()
                 loss.backward()
+                
                 tr_loss += loss.item()
                 if (step + 1) % self.args.gradient_accumulation_steps == 0:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.args.max_grad_norm)
