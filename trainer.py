@@ -389,6 +389,11 @@ class Trainer(object):
         from data_loader_new import read_examples_from_file
         examples = read_examples_from_file(self.args.data_dir, mode)
 
+        try:
+            os.makedirs(os.path.join(self.args.eval_dir, "pred"), exist_ok = True)
+            print("Directory '%s' created successfully" % os.path.join(self.args.eval_dir, "pred"))
+        except OSError as error:
+            print("Directory '%s' can not be created")
         
         if self.args.task_type == 're':
             preds = np.argmax(preds, axis=1)
