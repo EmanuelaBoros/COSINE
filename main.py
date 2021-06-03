@@ -70,7 +70,7 @@ def main(args):
 #            trainer.selftrain(labels, pad_token_label_id, soft = args.soft_label)
         
     if args.do_eval:
-        trainer.evaluate('test', labels, pad_token_label_id)
+        trainer.evaluate('test', labels)
 
 if __name__ == '__main__':
     
